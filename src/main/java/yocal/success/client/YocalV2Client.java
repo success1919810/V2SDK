@@ -1,4 +1,4 @@
-package yocal.success.Client;
+package yocal.success.client;
 
 import yocal.success.YocalV2Config;
 import yocal.success.request.BaseRequest;
