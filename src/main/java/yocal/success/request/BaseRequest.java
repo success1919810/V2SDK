@@ -13,8 +13,11 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 基础请求类
- */
+ * @author: success
+ * @date: 2025/9/10 17:59
+ * @version: v1.0.0
+ * @description: 基础请求类
+ **/
 public class BaseRequest {
     protected Map<String, String> commonParams = new LinkedHashMap<>();
     protected String bizContent;
