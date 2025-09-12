@@ -1,6 +1,6 @@
 package yocal.success.util;
 
-import yocal.success.YocalV2Config;
+import yocal.success.config.YocalV2Config;
 import yocal.success.exception.YocalException;
 
 import java.nio.charset.StandardCharsets;

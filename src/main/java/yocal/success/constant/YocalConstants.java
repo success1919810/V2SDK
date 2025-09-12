@@ -6,7 +6,7 @@ package yocal.success.constant;
  * @version: v1.0.0
  * @description: SDK中常量的定义
  **/
-public class YocalConstants {/** 默认字符集 */
+public class YocalConstants {
 public static final String DEFAULT_CHARSET = "UTF-8";
 
     /** 默认签名类型 */

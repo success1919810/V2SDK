@@ -8,7 +8,7 @@ import java.util.Map;
  * @author: success
  * @date: 2025/9/11 16:58
  * @version: v1.0.0
- * @description: TODO
+ * @description: 这个没必要理会了
  **/
 public class CoverToString {
 

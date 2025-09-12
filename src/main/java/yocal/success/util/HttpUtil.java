@@ -1,5 +1,6 @@
 package yocal.success.util;
 
+import yocal.success.config.YocalV2Config;
 import yocal.success.exception.YocalException;
 
 import java.io.BufferedReader;
@@ -18,15 +19,13 @@ public class HttpUtil {
 
     /**
      * 发送POST请求
-     * @param url 请求URL
      * @param params 请求参数
-     * @param sign 签名
      * @return 响应结果
      * @throws YocalException HTTP请求异常
      */
-    public static String post(String url, Map<String, String> params, String sign) throws YocalException {
+    public static String post(YocalV2Config config,Map<String,String> params,String sign) throws YocalException {
         try {
-            URL obj = new URL(url);
+            URL obj = new URL(config.getGatewayUrl());
             HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
             con.setRequestMethod("POST");

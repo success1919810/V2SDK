@@ -1,16 +1,22 @@
 package yocal.success.client;
 
-import yocal.success.YocalV2Config;
+import yocal.success.config.YocalV2Config;
+import yocal.success.constant.YocalConstants;
 import yocal.success.request.BaseRequest;
+import yocal.success.response.BaseResponse;
 import yocal.success.util.HttpUtil;
 import yocal.success.util.EncryptUtil;
 import yocal.success.exception.YocalException;
-import yocal.success.exception.YocalApiException;
+import yocal.success.util.SignatureUtil;
 
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.HashMap;
+
 
 /**
  * Yocal V2 SDK客户端
@@ -18,75 +24,90 @@ import java.util.HashMap;
  */
 public class YocalV2Client {
     private final YocalV2Config config;
-    private String gateway;
 
     public YocalV2Client(YocalV2Config config) {
         this.config = config;
-        // 使用配置中的网关URL作为默认值
-        this.gateway = config.getGatewayUrl();
     }
 
-    /**
-     * 设置网关地址
-     */
-    public void setGateway(String gateway) {
-        this.gateway = gateway;
-    }
 
     /**
      * 执行请求
-     * @param command 命令
-     * @param bizContent 业务内容（JSON格式）
+     * @param request 根据method去请求的业务地址
      * @return 响应结果
      * @throws YocalException SDK异常
      */
-    public  String execute(String command, String bizContent) throws YocalException {
-        // 创建请求对象
-        BaseRequest request = new BaseRequest(config, command);
-        request.setBizContent(bizContent);
+    public <T extends BaseResponse> T execute(BaseRequest<T> request) throws YocalException {
+        try {
 
-        // 构建请求参数
-        Map<String, String> params = request.buildRequestParams(config);
+            request.buildBizContent();
+            String bizContent = request.getBizContent();
 
-        // 生成签名
-        String sign = request.generateSign(config, params);
 
-        // 发送HTTP请求
-        String response = HttpUtil.post(gateway, params, sign);
+            if (config.isEncryptEnabled()) {
+                bizContent = EncryptUtil.encryptAES(config, bizContent);
+            }
 
-        // 如果启用了加密，则对响应进行解密
-        if (config.isEncryptEnabled()) {
-            // 解析响应中的加密内容
-            String decryptedResponse = decryptResponse(response, command);
-            return decryptedResponse;
+
+            Map<String, String> params = buildRequestParams(request, bizContent);
+
+
+            String sign = SignatureUtil.sign(config, params);
+
+
+            String responseJson = HttpUtil.post(config, params, sign);
+
+
+
+            if (config.isEncryptEnabled()) {
+                responseJson = decryptResponse(responseJson, request.getCommand());
+            }
+
+
+            BaseResponse baseResp = new BaseResponse();
+            baseResp.setRawJson(responseJson);
+            return (T) baseResp;
+
+        } catch (Exception e) {
+            throw new YocalException("请求执行失败", e);
         }
+    }
 
-        return response;
+    /**
+     * 构建请求参数（公共参数 + bizContent）
+     */
+    private <T extends BaseResponse> Map<String, String> buildRequestParams(BaseRequest<T> request, String bizContent) {
+        Map<String, String> params = new HashMap<>();
+        params.put("appId", config.getAppId());
+        params.put("command", request.getCommand());
+        params.put("timestamp", getCurrentTimestamp());
+        params.put("charset", config.getCharset());
+        params.put("format", config.getFormat());
+        params.put("signType", config.getSignType());
+        params.put("encryptType", config.getEncryptType());
+        params.put("version", config.getVersion());
+        params.put("bizContent", bizContent);
+        params.put("nonce", generateNonce());
+        return params;
+    }
+
+    /**
+     * 生成随机字符串
+     */
+    private String generateNonce() {
+        return java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 16);
     }
 
     /**
      * 解密响应内容
-     * @param response 原始响应
-     * @param command 命令
-     * @return 解密后的响应
-     * @throws YocalException 解密异常
      */
     private String decryptResponse(String response, String command) throws YocalException {
         try {
-            // 根据命令构造响应字段名，格式为: command + "_response"
-            // 将命令中的点号替换为下划线
             String responseFieldName = command.replace(".", "_") + "_response";
-
-            // 使用正则表达式提取加密内容
             Pattern pattern = Pattern.compile("\"" + responseFieldName + "\":\"([^\"]+)\"");
             Matcher matcher = pattern.matcher(response);
-
             if (matcher.find()) {
                 String encryptedContent = matcher.group(1);
-                // 对加密内容进行解密
                 String decryptedContent = EncryptUtil.decryptAES(config, encryptedContent);
-
-                // 构造解密后的响应JSON
                 return "{\"" + responseFieldName + "\":" + decryptedContent + "}";
             } else {
                 throw new YocalException("无法从响应中提取加密内容，字段名: " + responseFieldName);
@@ -94,5 +115,14 @@ public class YocalV2Client {
         } catch (Exception e) {
             throw new YocalException("响应解密失败", e);
         }
+    }
+
+    /**
+     * 获取当前时间戳
+     */
+    private String getCurrentTimestamp() {
+        LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(YocalConstants.TIMESTAMP_FORMAT);
+        return now.format(formatter);
     }
 }
