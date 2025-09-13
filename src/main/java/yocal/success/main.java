@@ -24,7 +24,7 @@ public class main {
          YocalV2Client client = new YocalV2Client(config);
          AccountTransQuery request= new AccountTransQuery();
          request.setPageNo("1");
-         request.setPageSize("100");
+         request.setPageSize("1");
          request.buildBizContent();
         try {
             BaseResponse response = client.execute(request);

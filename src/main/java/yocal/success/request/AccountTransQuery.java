@@ -10,8 +10,6 @@ import yocal.success.response.BaseResponse;
  */
 public class AccountTransQuery extends BaseRequest<BaseResponse> {
 
-
-
     private String pageNo;
     private String pageSize;
 

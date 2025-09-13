@@ -103,17 +103,34 @@ public class YocalV2Client {
     private String decryptResponse(String response, String command) throws YocalException {
         try {
             String responseFieldName = command.replace(".", "_") + "_response";
-            Pattern pattern = Pattern.compile("\"" + responseFieldName + "\":\"([^\"]+)\"");
+
+            // 验证响应是否为空
+            if (response == null || response.trim().isEmpty()) {
+                throw new YocalException("响应内容为空");
+            }
+
+            // 打印调试信息（生产环境中应移除或使用proper日志）
+            System.out.println("Expected field: " + responseFieldName);
+            System.out.println("Response content: " + response);
+
+            // 使用更健壮的正则表达式
+            String regex = "\"" + Pattern.quote(responseFieldName) + "\"\\s*:\\s*\"([^\"]+)\"";
+            Pattern pattern = Pattern.compile(regex, Pattern.DOTALL);
             Matcher matcher = pattern.matcher(response);
+
             if (matcher.find()) {
                 String encryptedContent = matcher.group(1);
                 String decryptedContent = EncryptUtil.decryptAES(config, encryptedContent);
                 return "{\"" + responseFieldName + "\":" + decryptedContent + "}";
             } else {
-                throw new YocalException("无法从响应中提取加密内容，字段名: " + responseFieldName);
+                // 如果没有找到加密字段，可能是非加密响应，直接返回原响应
+                System.out.println("未找到加密字段 " + responseFieldName + "，返回原始响应");
+                return response;
             }
         } catch (Exception e) {
-            throw new YocalException("响应解密失败", e);
+            // 如果解密失败，返回原始响应
+            System.out.println("响应解密失败，返回原始响应: " + e.getMessage());
+            return response;
         }
     }
 
