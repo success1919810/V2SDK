@@ -53,15 +53,21 @@ public class YocalV2Client {
 
             String sign = SignatureUtil.sign(config, params);
 
+            // 使用新的方法获取响应体和响应头
+            Object[] responseData = HttpUtil.postWithHeaders(config, params, sign);
+            String responseJson = (String) responseData[0];
+            @SuppressWarnings("unchecked")
+            Map<String, String> responseHeaders = (Map<String, String>) responseData[1];
 
-            String responseJson = HttpUtil.post(config, params, sign);
-
-
-
+            // 处理响应解密
             if (config.isEncryptEnabled()) {
                 responseJson = decryptResponse(responseJson, request.getCommand());
             }
 
+            // 验证响应签名
+            if (config.getPublicKey() != null && !config.getPublicKey().isEmpty()) {
+                verifyResponseSignature(responseJson, responseHeaders);
+            }
 
             BaseResponse baseResp = new BaseResponse();
             baseResp.setRawJson(responseJson);
@@ -141,5 +147,95 @@ public class YocalV2Client {
         LocalDateTime now = LocalDateTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern(YocalConstants.TIMESTAMP_FORMAT);
         return now.format(formatter);
+    }
+
+    /**
+     * 验证响应签名
+     * @param responseJson 响应JSON字符串
+     * @param headers 响应头
+     * @throws YocalException 验签失败异常
+     */
+    private void verifyResponseSignature(String responseJson, Map<String, String> headers) throws YocalException {
+        try {
+            // 从响应头中获取签名
+            String responseSign = headers.get("X-Response-Sign");
+            if (responseSign == null || responseSign.isEmpty()) {
+                System.out.println("警告：响应头中未找到签名信息，跳过验签");
+                return;
+            }
+
+            // 从响应JSON中提取需要验签的字段
+            Map<String, String> responseParams = extractResponseParams(responseJson);
+            
+            // 使用SignatureUtil进行验签
+            boolean isValid = SignatureUtil.verify(config, responseParams, responseSign);
+            
+            if (!isValid) {
+                throw new YocalException("响应签名验证失败");
+            }
+            
+            System.out.println("响应签名验证成功");
+            
+        } catch (Exception e) {
+            throw new YocalException("响应签名验证异常: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 从响应JSON中提取需要验签的参数
+     * @param responseJson 响应JSON字符串
+     * @return 参数Map
+     */
+    private Map<String, String> extractResponseParams(String responseJson) {
+        Map<String, String> params = new HashMap<>();
+        
+        try {
+            // 简单的JSON解析，提取主要字段
+            // 这里可以根据实际的响应格式进行调整
+            if (responseJson.contains("\"code\"")) {
+                String code = extractJsonValue(responseJson, "code");
+                if (code != null) params.put("code", code);
+            }
+            
+            if (responseJson.contains("\"msg\"")) {
+                String msg = extractJsonValue(responseJson, "msg");
+                if (msg != null) params.put("msg", msg);
+            }
+            
+            if (responseJson.contains("\"timestamp\"")) {
+                String timestamp = extractJsonValue(responseJson, "timestamp");
+                if (timestamp != null) params.put("timestamp", timestamp);
+            }
+            
+            if (responseJson.contains("\"nonce\"")) {
+                String nonce = extractJsonValue(responseJson, "nonce");
+                if (nonce != null) params.put("nonce", nonce);
+            }
+            
+        } catch (Exception e) {
+            System.out.println("解析响应参数时出错: " + e.getMessage());
+        }
+        
+        return params;
+    }
+
+    /**
+     * 从JSON字符串中提取指定字段的值
+     * @param json JSON字符串
+     * @param fieldName 字段名
+     * @return 字段值
+     */
+    private String extractJsonValue(String json, String fieldName) {
+        try {
+            String pattern = "\"" + fieldName + "\"\\s*:\\s*\"([^\"]+)\"";
+            Pattern p = Pattern.compile(pattern);
+            Matcher m = p.matcher(json);
+            if (m.find()) {
+                return m.group(1);
+            }
+        } catch (Exception e) {
+            System.out.println("提取JSON字段值时出错: " + e.getMessage());
+        }
+        return null;
     }
 }

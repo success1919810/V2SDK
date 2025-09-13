@@ -43,7 +43,7 @@ public class YocalV2Config {
     public String getVersion() { return version; }
     public String getEncryptType() { return encryptType; }
     public String getPublicKey() { return publicKey; }
-    public String getGatewayUrl() { return gateway; }
+    public String getGateway() { return gateway; }
     public String getCharset() { return charset; }
     public String getSignType() { return signType; }
     public String getFormat() { return format; }

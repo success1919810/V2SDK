@@ -51,4 +51,6 @@ public class AccountTransQuery extends BaseRequest<BaseResponse> {
     public String getCommand() {
         return "yocyl.account.trans.query";
     }
+
+
 }
